@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consent Form</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+          crossorigin="anonymous">
+  </head>
+  <body class="container py-4">
+    <h1 class="mb-4">Consent Form</h1>
+    <p class="lead mb-4">The purpose of this study is to better understand human creativity. The study should take no more than 2 minutes to complete.</p>
+    <h2>Information for Participants:</h2>
+    <p class="mb-4">You are invited to participate in a research study. You will be asked to generate ideas in response to a prompt, and your responses may be shown to subsequent participants. Your participation is voluntary and you may withdraw at any time without penalty. All data collected will be kept confidential.</p>
+    <h2>Benefits:</h2>
+    <p class="mb-4">There are no direct benefits to you for participating in this study. However, your participation will contribute to our understanding of creativity and large language models.</p>
+    <h2>Risks:</h2>
+    <p class="mb-4">There are no anticipated risks associated with participating in this study.</p>
+    <h2>Contact Information:</h2>
+    <p class="mb-4">If you have any questions or concerns about the study, please contact the researchers at [insert contact information here].</p>
+    <h2>Consent:</h2>
+    <p class="mb-4">By clicking the "I Agree" button below, you are indicating that you are at least 18 years old, that you have read and understood the above information, and that you agree to participate in this study voluntarily.</p>
+    <form action="/experiment" method="post">
+      <div class="form-group">
+        <div class="form-check mb-4">
+          <input type="checkbox" class="form-check-input" id="consentCheck" required>
+          <label class="form-check-label" for="consentCheck">I agree to participate in this study</label>
+        </div>
+        <button type="submit" class="btn btn-primary">I Agree</button>
+      </div>
+    </form>
+  </body>
+</html>
