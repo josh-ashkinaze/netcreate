@@ -11,11 +11,12 @@ def experiment():
     if request.method == 'POST':
         # Do something with the participant's response
         response = request.form.get('response')
+        # Redirect the user to the thank you page
+        return redirect(url_for('thank_you'))
+    else:
         # Render the experiment page
         return render_template('experiment.html')
-    else:
-        # Render the consent form page
-        return render_template('consent_form.html')
+
 
 
 @app.route("/thank-you")
