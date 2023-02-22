@@ -26,6 +26,7 @@ def main():
     df = pd.read_csv("../data/AUT_Coding_ColoradoScores_v2.csv")
     df = df.dropna(subset=['Colorado Similarity Scores'])
     df['sim'] = df['Colorado Similarity Scores']
+    df = df.query("sim>=0&sim<=1")
 
     # Now we want to find the set of 5 items with the lowest variance of creativity
     means = df.groupby(by=['Prompt']).mean().reset_index()[['Prompt', 'sim']]
@@ -36,7 +37,8 @@ def main():
         data.append({'combo': str(combo), 'var': combo_var})
     combo_df = pd.DataFrame(data)
     logging.info("Lowest variance subset of 5")
-    logging.info(combo_df.sort_values(by=['var'], ascending=False).head(1))
+    logging.info(combo_df.sort_values(by=['var'], ascending=True).head(1))
+    logging.info(combo_df['var'].describe())
 
 
 main()

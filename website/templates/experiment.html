@@ -10,7 +10,10 @@
   </head>
   <body class="container py-4">
     <h1 class="mb-4">Alternate Uses Test</h1>
-    <p> For this task, you should write down original and creative uses for {item}. Certainly there are common, unoiriginal ways to use {item}. But for this task, write down the most unusual, creative, and uncommon use you can think of. Here are some responses other participants gave. </p>
+    <p> Now we are going to show you 5 items and ask you to come up with creative uses for these items. For each item, we'll also show you what uses other people have listed. For some items, we also asked large language models (like ChatGPT) how they would respond. So we'll also show you how ChatGPT responded as well, when relevant.</p>
+    <hr>
+    <h2>Task 1: {item_1}</h2>
+    <p>For this task, you should write down original and creative uses for {item_1}. Certainly there are common, unoriginal ways to use {item_1}. But for this task, write down the most unusual, creative, and uncommon use you can think of. Here are some responses other participants gave.</p>
     <ul>
       {% for row in rows %}
       <li><strong>{{ row.response_text }}</strong></li>
@@ -18,7 +21,7 @@
     </ul>
     <form action="/experiment" method="post" class="mt-20">
       <div class="form-group">
-        <input type="text" class="form-control" name="response" required>
+        <input type="text" class="form-control" name="response_1" required>
       </div>
       <button type="submit" class="btn btn-primary">Submit</button>
     </form>
