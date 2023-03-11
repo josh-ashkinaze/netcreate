@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import uuid
+import time
 from datetime import datetime
 import random
 
@@ -49,32 +50,33 @@ def start_experiment():
     random.shuffle(item_order)
     condition_order = list(CONDITIONS.keys())
     random.shuffle(condition_order)
-    for i in range(len(ITEMS)):
-        temp['condition_order'] = condition_order
-        temp['item_order'] = item_order
-        return redirect(url_for('experiment', trial=0))
-    return redirect(url_for('thank_you'))
+    temp['condition_order'] = condition_order
+    temp['item_order'] = item_order
+    temp['trial'] = 0
+    time.sleep(0.5)
+    return redirect(url_for('experiment', trial=temp['trial']))
+
 
 
 @app.route("/experiment/<int:trial>", methods=['GET', 'POST'])
 def experiment(trial):
-    print("TEMP")
-    print(temp)
+    # If the participant has completed all trials, redirect to thank you page
+    if trial > 3:
+        return redirect(url_for('thank_you'))
+
     # Retrieve the necessary information from the global temp variable
-    if trial <= 3:
-        label = CONDITIONS[temp['condition_order'][trial]]['label']
-        source = CONDITIONS[temp['condition_order'][trial]]['source']
-        participant_id = temp['participant_id']
-        condition = temp['condition_order'][trial]
-        condition_order = trial
-        item = temp['item_order'][trial]
-        id = str(uuid.uuid4())
-    else:
-        return render_template("thank_you.html")
+    label = CONDITIONS[temp['condition_order'][trial]]['label']
+    source = CONDITIONS[temp['condition_order'][trial]]['source']
+    participant_id = temp['participant_id']
+    condition = temp['condition_order'][trial]
+    condition_order = trial
+    item = temp['item_order'][trial]
+    id = str(uuid.uuid4())
 
     if request.method == 'POST':
         # Get the response text and the datetime of the response
         response_text = request.form.get('participant_response')
+        print("RESPONSE TEXT", response_text)
 
         # Insert the response into the trials table
         row = {
@@ -90,24 +92,21 @@ def experiment(trial):
             "label": label,
         }
         errors = client.insert_rows_json(table, [row])
-        if errors == []:
+        if not errors:
+            print(row)
             print("New rows have been added.")
         else:
             print("Encountered errors while inserting rows: {}".format(errors))
-        if trial > 3:
-            return redirect(url_for('thank_you'))
-        else:
-            temp['trial'] = trial
-            temp['item'] = random.choice(ITEMS)
-            temp['condition_info'] = random.choice(list(CONDITIONS.keys()))
-            return redirect(url_for('experiment', trial=trial))
+
+        # Redirect to next trial
+        return redirect(url_for('experiment', trial=trial+1))
 
     # Generate a prompt for the participant to respond to
-    prompt = f"Please describe a novel use for {item}."
-    rows = client.query(f"SELECT response_text FROM `net_expr.trials` WHERE participant_id='{participant_id}' and item='{item}'").result()
-    responses = [row['response_text'] for row in rows]
-    print("THIS PART")
+    rows = list(client.query(f"SELECT response_text FROM `net_expr.trials` WHERE item= '{item}' ").result())
+    responses = [row['response_text'] for row in rows][-3:]
+    print("responses", responses)
     return render_template('experiment.html', item=item, label=label, rows=responses, trial=trial)
+
 
 @app.route("/thank-you")
 def thank_you():
