@@ -1,6 +1,7 @@
 
 # TODO clean up the database. As of now 'trial' is a dummy value. Don't need it  because it's just row anyway
 # TODO fix the specific items
+# TODO ask qiwei if need sleep requests
 
 from flask import Flask, render_template, request, redirect, url_for
 from google.cloud import bigquery
@@ -50,6 +51,12 @@ def consent_form():
 
 @app.route("/start-experiment")
 def start_experiment():
+    """
+    Start the experiment by creating a participant ID, counterbalancing conditions, and counterbalancing items. Store these items in the global variable called `temp'.
+
+    Then, we start the experiment by calling `experiment(conditon_no)', and `experiment' will recursively call itself to display all 4 item/condition pairs.
+
+    """
     temp['participant_id'] = str(uuid.uuid4())
     item_order = list(ITEMS)
     random.shuffle(item_order)
@@ -64,15 +71,17 @@ def start_experiment():
 @app.route("/experiment/<int:condition_no>", methods=['GET', 'POST'])
 def experiment(condition_no):
     """
-    Recursively handles the experiment route for a particular condition_no. 
-    
-    If the current condition_no number is more than the number of items, returns the thank you page.
-    
-    Otherwise, this function will:
-    
-        1. If the HTTP method is GET, the function retrieves the necessary context from the global temp dict and generates an experiment instance. 
+    Recursively handles the experiment route for a particular condition_no. The idea is that in a temp dictionary, we store the participant ID, the condition order, and the item order. Then, we keep calling this function with the next condition_no -- which indexes items and conditions -- until we've gone through all conditions.
 
-        2. If the HTTP method is POST, the function retrieves the participant's response text and inserts it into a BigQuery table. Then we call `experiment(condition_no+1)'
+    The logic is as follows:
+
+    IF the current condition_no number is more than the number of items, return the thank you page.
+    
+    ELSE:
+    
+        1. If the HTTP method is GET (i.e: response not submitted), retrieve the necessary context from the global temp dict and generates an experiment instance.
+
+        2. If the HTTP method is POST (i.e: response was submitted), the function retrieves the participant's response text and inserts it into a BigQuery table. Then we call `experiment(condition_no+1)' to go to the next condition/item.
 
 
     Parameters:
@@ -86,19 +95,32 @@ def experiment(condition_no):
     time.sleep(0.1)
     if condition_no > len(ITEMS)-1:
         return redirect(url_for('thank_you'))
+    else:
+        pass
 
     # Retrieve the necessary information from the global temp variable
     label = CONDITIONS[temp['condition_order'][condition_no]]['label']
     source = CONDITIONS[temp['condition_order'][condition_no]]['source']
     participant_id = temp['participant_id']
     condition = temp['condition_order'][condition_no]
-    condition_order = condition_no
     item = temp['item_order'][condition_no]
-    id = str(uuid.uuid4())
+    id = temp['participant_id']
+
+    # If the HTTP method is GET, render the experiment template
+    if request.method == "GET":
+        rows = list(client.query(f"SELECT response_text FROM `net_expr.trials` WHERE item= '{item}' ORDER BY response_date DESC LIMIT {N_EXAMPLES} ").result())
+        responses = [row['response_text'] for row in rows]
+        print("responses", responses)
+        return render_template('experiment.html', item=item, label=label, rows=responses, condition_no=condition_no)
 
     # If the HTTP method is POST, insert the participant's response into the BigQuery table
-    if request.method == 'POST':
+    # then increment the condition_no and redirect to the next experiment
+    elif request.method == 'POST':
+
+        # Retrieve the participant's response
         response_text = request.form.get('participant_response')
+
+        # Insert the participant's response into the BigQuery table
         row = {
             "item": item,
             "id": id,
@@ -113,7 +135,6 @@ def experiment(condition_no):
         }
         errors = client.insert_rows_json(table, [row])
         if not errors:
-            print(row)
             print("New rows have been added.")
         else:
             print("Encountered errors while inserting rows: {}".format(errors))
@@ -121,12 +142,6 @@ def experiment(condition_no):
         # Redirect to next condition_no
         return redirect(url_for('experiment', condition_no=condition_no + 1))
     
-    # If the HTTP method is GET, render the experiment template
-    else:
-        rows = list(client.query(f"SELECT response_text FROM `net_expr.trials` WHERE item= '{item}' ORDER BY response_date DESC LIMIT {N_EXAMPLES} ").result())
-        responses = [row['response_text'] for row in rows]
-        print("responses", responses)
-        return render_template('experiment.html', item=item, label=label, rows=responses, condition_no=condition_no)
 
 
 @app.route("/thank-you")
