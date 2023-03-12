@@ -51,9 +51,9 @@ def consent_form():
 @app.route("/start-experiment")
 def start_experiment():
     """
-    Start the experiment by creating a participant ID, counterbalancing conditions, and counterbalancing items. Store these items in the global variable called `temp'.
+    Start the render_trial by creating a participant ID, counterbalancing conditions, and counterbalancing items. Store these items in the global variable called `temp'.
 
-    Then, we start the experiment by calling `experiment(conditon_no)', and `experiment' will recursively call itself to display all 4 item/condition pairs.
+    Then, we start the render_trial by calling `render_trial(conditon_no)', and `render_trial' will recursively call itself to display all 4 trials until render_trial is done.
 
     """
     temp['participant_id'] = str(uuid.uuid4())
@@ -63,34 +63,32 @@ def start_experiment():
     random.shuffle(condition_order)
     temp['condition_order'] = condition_order
     temp['item_order'] = item_order
-    return redirect(url_for('experiment', condition_no=0))
+    return redirect(url_for('render_trial', condition_no=0, method="GET"))
 
 
-@app.route("/experiment/<int:condition_no>", methods=['GET', 'POST'])
-def experiment(condition_no):
+@app.route("/trial/<int:condition_no>", methods=['GET', 'POST'])
+def render_trial(condition_no):
     """
-    Recursively handles the experiment route for a particular condition_no. The idea is that in a temp dictionary, we store the participant ID, the condition order, and the item order. Then, we keep calling this function with the next condition_no -- which indexes items and conditions -- until we've gone through all conditions.
+    Recursively handles the render_trial route for a particular condition_no. The idea is that in a temp dictionary, we store the participant ID, the condition order, and the item order. Then, we keep calling this function with the next condition_no -- which indexes items and conditions -- until we've gone through all conditions.
 
     The logic is as follows:
 
-    IF the current condition_no number is more than the number of items, return the thank you page.
+    IF the current condition_no number is more than the number of items:
+        Return the thank you page since render_trial is done.
     
-    ELSE:
-    
-        1. If the HTTP method is GET (i.e: response not submitted), retrieve the necessary context from the global temp dict and generates an experiment instance.
+    ELSE if there are still trials to go:
+        1. If the HTTP method is GET (i.e: response not submitted), retrieve the necessary context from the global temp dict and generate an render_trial instance. Upon submitting a respnse, this submits a post request.
 
-        2. If the HTTP method is POST (i.e: response was submitted), the function retrieves the participant's response text and inserts it into a BigQuery table. Then we call `experiment(condition_no+1)' to go to the next condition/item.
+        2. If the HTTP method is POST (i.e: response was submitted), the function retrieves the participant's response text and inserts it into a BigQuery table. Then we make GET request to `render_trial(condition_no+1)' to go to the next condition/item.
 
 
     Parameters:
     - condition_no (int): the current condition_no
 
     Returns:
-    - A Flask response object containing the rendered experiment template with the item, label, previous responses, and condition_no number as context variables.
+    - A Flask response object containing the rendered render_trial template with the item, label, previous responses, and condition_no number as context variables.
 
     """
-    # #
-
     # If the participant has completed all condition_nos, redirect to thank you page
     if condition_no > len(ITEMS)-1:
         return redirect(url_for('thank_you'))
@@ -104,17 +102,17 @@ def experiment(condition_no):
     condition = temp['condition_order'][condition_no]
     item = temp['item_order'][condition_no]
 
-    # If the HTTP method is GET, render the experiment template
+    # If the HTTP method is GET, render the render_trial template
     if request.method == "GET":
         time.sleep(0.1)
         rows = list(client.query(
             f"SELECT response_text FROM `net_expr.trials` WHERE (item = '{item}' AND condition = '{condition}') ORDER BY response_date DESC LIMIT {N_EXAMPLES}").result())
         responses = [row['response_text'] for row in rows]
         print("responses", responses)
-        return render_template('experiment.html', item=item, label=label, rows=responses, condition_no=condition_no)
+        return render_template('render_trial.html', item=item, label=label, rows=responses, condition_no=condition_no)
 
     # If the HTTP method is POST, insert the participant's response into the BigQuery table
-    # then increment the condition_no and redirect to the next experiment
+    # then increment the condition_no and redirect to the next render_trial
     elif request.method == 'POST':
 
         # Retrieve the participant's response
@@ -139,7 +137,7 @@ def experiment(condition_no):
             print("Encountered errors while inserting rows: {}".format(errors))
 
         # Redirect to next condition_no
-        return redirect(url_for('experiment', condition_no=condition_no + 1))
+        return redirect(url_for('render_trial', condition_no=condition_no + 1, method="GET"))
     
 
 
