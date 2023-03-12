@@ -108,7 +108,8 @@ def experiment(condition_no):
 
     # If the HTTP method is GET, render the experiment template
     if request.method == "GET":
-        rows = list(client.query(f"SELECT response_text FROM `net_expr.trials` WHERE item= '{item}' ORDER BY response_date DESC LIMIT {N_EXAMPLES} ").result())
+        rows = list(client.query(
+            f"SELECT response_text FROM `net_expr.trials` WHERE (item = '{item}' AND condition = '{condition}') ORDER BY response_date DESC LIMIT {N_EXAMPLES}").result())
         responses = [row['response_text'] for row in rows]
         print("responses", responses)
         return render_template('experiment.html', item=item, label=label, rows=responses, condition_no=condition_no)
@@ -125,7 +126,7 @@ def experiment(condition_no):
             "item": item,
             "id": id,
             "participant_id": participant_id,
-            "condition_no": condition_no,
+            "condition_order": condition_no,
             "response_text": response_text,
             "response_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "condition": condition,
