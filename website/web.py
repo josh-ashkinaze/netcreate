@@ -1,7 +1,6 @@
 
-# TODO clean up the database. As of now 'trial' is a dummy value. Don't need it  because it's just row anyway
 # TODO fix the specific items
-# TODO ask qiwei if need sleep requests
+# TODO add GPT prompts
 
 from flask import Flask, render_template, request, redirect, url_for
 from google.cloud import bigquery
@@ -64,7 +63,6 @@ def start_experiment():
     random.shuffle(condition_order)
     temp['condition_order'] = condition_order
     temp['item_order'] = item_order
-    time.sleep(0.05)
     return redirect(url_for('experiment', condition_no=0))
 
 
@@ -91,8 +89,9 @@ def experiment(condition_no):
     - A Flask response object containing the rendered experiment template with the item, label, previous responses, and condition_no number as context variables.
 
     """
+    # #
+
     # If the participant has completed all condition_nos, redirect to thank you page
-    time.sleep(0.1)
     if condition_no > len(ITEMS)-1:
         return redirect(url_for('thank_you'))
     else:
@@ -104,10 +103,13 @@ def experiment(condition_no):
     participant_id = temp['participant_id']
     condition = temp['condition_order'][condition_no]
     item = temp['item_order'][condition_no]
-    id = temp['participant_id']
+
+    # Generate unique response id
+    response_id =  str(uuid.uuid4())
 
     # If the HTTP method is GET, render the experiment template
     if request.method == "GET":
+        time.sleep(0.1)
         rows = list(client.query(
             f"SELECT response_text FROM `net_expr.trials` WHERE (item = '{item}' AND condition = '{condition}') ORDER BY response_date DESC LIMIT {N_EXAMPLES}").result())
         responses = [row['response_text'] for row in rows]
@@ -124,13 +126,12 @@ def experiment(condition_no):
         # Insert the participant's response into the BigQuery table
         row = {
             "item": item,
-            "id": id,
+            "response_id": response_id,
             "participant_id": participant_id,
             "condition_order": condition_no,
             "response_text": response_text,
             "response_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "condition": condition,
-            "trial": 1,
             "source": source,
             "label": label,
         }
