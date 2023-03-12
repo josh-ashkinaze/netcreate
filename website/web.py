@@ -81,7 +81,7 @@ def start_experiment():
     return redirect(url_for('render_trial', condition_no=0, method="GET"))
 
 
-@app.route("/trial/<int:condition_no>", methods=['GET', 'POST'])
+@app.route("/render_trial/<int:condition_no>", methods=['GET', 'POST'])
 def render_trial(condition_no):
     """
     Recursively handles the render_trial route for a particular condition_no.
