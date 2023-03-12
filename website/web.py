@@ -104,9 +104,6 @@ def experiment(condition_no):
     condition = temp['condition_order'][condition_no]
     item = temp['item_order'][condition_no]
 
-    # Generate unique response id
-    response_id =  str(uuid.uuid4())
-
     # If the HTTP method is GET, render the experiment template
     if request.method == "GET":
         time.sleep(0.1)
@@ -126,7 +123,7 @@ def experiment(condition_no):
         # Insert the participant's response into the BigQuery table
         row = {
             "item": item,
-            "response_id": response_id,
+            "response_id": str(uuid.uuid4()),
             "participant_id": participant_id,
             "condition_order": condition_no,
             "response_text": response_text,
