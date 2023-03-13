@@ -61,12 +61,16 @@ def main():
 
     prompts = sim_subset['combo'].tolist()[0].replace('(', '').replace(')', '').replace("'", '').split(', ')
 
-    # Get a sample of responses from this subset
-    df[df['prompt'].isin(prompts)] \
-        .groupby(by=['prompt']) \
-        .sample(n=10, random_state=42) \
-        [['prompt', 'response']] \
-        .to_csv("../data/subset_samples.csv", index=False)
+    # Get a sample of responses from this subset that are mid-originality
+    # (i.e: 25% to 75% percentile)
+    sample_df = df[df['prompt'].isin(prompts)] \
+        .groupby('prompt') \
+        .apply(lambda x: x[(x['human_vote'] >= x['human_vote'].quantile(0.10)) &
+                           (x['human_vote'] <= x['human_vote'].quantile(0.90))] \
+               .drop_duplicates(subset=['response']) \
+               .sample(n=10, random_state=56)) \
+        .reset_index(drop=True)[['prompt', 'response']]
+    sample_df.to_csv("../data/subset_samples.csv", index=False)
 
 
 if __name__ == "__main__":
