@@ -44,7 +44,7 @@ def main():
                                          caption='Summary statistics of originality scores (1-5) from \citet{dumas_measuring_2021}',
                                          label='tab:prior_work_prompts'))
 
-    # Get combo with smallest variance
+    # Get combo with smallest sd
     means = df.groupby(by=['prompt']).mean().reset_index()[['prompt', 'human_vote']]
     all_combos = list(itertools.combinations(means['prompt'].tolist(), 5))
     data = []
@@ -60,8 +60,6 @@ def main():
     logging.info(sim_subset)
 
     prompts = sim_subset['combo'].tolist()[0].replace('(', '').replace(')', '').replace("'", '').split(', ')
-    print(prompts)
-
 
     # Get a sample of responses from this subset
     df[df['prompt'].isin(prompts)] \
