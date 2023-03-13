@@ -14,13 +14,13 @@ import numpy as np
 import subprocess
 
 
-def main():
+def main(N=4):
     log_file = os.path.splitext(os.path.basename(__file__))[0] + '.log'
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode="w", format='%(asctime)s %(message)s')
+    logging.info("number of objects: {}".format(N))
 
     # Read in AUT scores that were used in the paper:
     # Dumas, D., Organisciak, P., & Doherty, M. (2021). Measuring divergent thinking originality with human raters and text-mining models: A psychometric comparison of methods. Psychology of Aesthetics, Creativity, and the Arts, 15(4), 645–663.
-
     # Note: The link to the data was obtained by Joshua Ashkinaze contacting Peter Organisciak
 
     # Check if the data file already exists
@@ -46,7 +46,7 @@ def main():
 
     # Get combo with smallest sd
     means = df.groupby(by=['prompt']).mean().reset_index()[['prompt', 'human_vote']]
-    all_combos = list(itertools.combinations(means['prompt'].tolist(), 5))
+    all_combos = list(itertools.combinations(means['prompt'].tolist(), N))
     data = []
     for combo in all_combos:
         combo_var = np.std(means[means['prompt'].isin(combo)]['human_vote'].tolist())
@@ -70,7 +70,7 @@ def main():
                .drop_duplicates(subset=['response']) \
                .sample(n=10, random_state=56)) \
         .reset_index(drop=True)[['prompt', 'response']]
-    sample_df.to_csv("../data/subset_samples.csv", index=False)
+    sample_df.to_csv(f"../data/{N}_subset_samples.csv", index=False)
 
 
 if __name__ == "__main__":
