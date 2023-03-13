@@ -6,7 +6,6 @@ Author: Joshua Ashkinaze
 Date: 2023-02-21
 """
 
-
 import pandas as pd
 import itertools
 import logging
@@ -41,22 +40,34 @@ def main():
     summary['count'] = summary['count'].astype(int)
     summary = summary.round(2).reset_index()
     logging.info("\n" + summary.to_latex(index=False,
-                           caption='Summary statistics of originality scores (1-5) from \citet{dumas_measuring_2021}',
-                           label='tab:prior_work_prompts'))
+                                         caption='Summary statistics of originality scores (1-5) from \citet{dumas_measuring_2021}',
+                                         label='tab:prior_work_prompts'))
 
     # Get combo with smallest variance
     means = df.groupby(by=['prompt']).mean().reset_index()[['prompt', 'human_vote']]
     all_combos = list(itertools.combinations(means['prompt'].tolist(), 5))
     data = []
     for combo in all_combos:
-        combo_var = np.var(means[means['prompt'].isin(combo)]['human_vote'].tolist())
-        data.append({'combo': str(combo), 'var': combo_var})
+        combo_var = np.std(means[means['prompt'].isin(combo)]['human_vote'].tolist())
+        data.append({'combo': str(combo), 'sd': combo_var})
     combo_df = pd.DataFrame(data)
-    combo_df = combo_df.sort_values(by=['var'], ascending=True)
+    combo_df = combo_df.sort_values(by=['sd'], ascending=True)
     logging.info("Head of DF")
-    logging.info(combo_df.sort_values(by=['var']).head(5))
+    logging.info(combo_df.sort_values(by=['sd']).head(5))
     logging.info("Most Sim Subset")
-    logging.info(combo_df.sort_values(by=['var']).head(1))
+    sim_subset = combo_df.sort_values(by=['sd']).head(1)
+    logging.info(sim_subset)
+
+    prompts = sim_subset['combo'].tolist()[0].replace('(', '').replace(')', '').replace("'", '').split(', ')
+    print(prompts)
+
+
+    # Get a sample of responses from this subset
+    df[df['prompt'].isin(prompts)] \
+        .groupby(by=['prompt']) \
+        .sample(n=10, random_state=42) \
+        [['prompt', 'response']] \
+        .to_csv("../data/subset_samples.csv", index=False)
 
 
 if __name__ == "__main__":
