@@ -16,7 +16,7 @@ import subprocess
 
 def main():
     log_file = os.path.splitext(os.path.basename(__file__))[0] + '.log'
-    logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.basicConfig(filename=log_file, level=logging.INFO, filemode="w", format='%(asctime)s %(message)s')
 
     # Read in AUT scores that were used in the paper:
     # Dumas, D., Organisciak, P., & Doherty, M. (2021). Measuring divergent thinking originality with human raters and text-mining models: A psychometric comparison of methods. Psychology of Aesthetics, Creativity, and the Arts, 15(4), 645–663.
@@ -40,6 +40,7 @@ def main():
     summary['count'] = summary['count'].astype(int)
     summary = summary.round(2).reset_index()
     logging.info("\n" + summary.to_latex(index=False,
+                                         position = "h!",
                                          caption='Summary statistics of originality scores (1-5) from \citet{dumas_measuring_2021}',
                                          label='tab:prior_work_prompts'))
 
