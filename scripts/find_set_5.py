@@ -65,8 +65,8 @@ def main():
     # (i.e: 25% to 75% percentile)
     sample_df = df[df['prompt'].isin(prompts)] \
         .groupby('prompt') \
-        .apply(lambda x: x[(x['human_vote'] >= x['human_vote'].quantile(0.10)) &
-                           (x['human_vote'] <= x['human_vote'].quantile(0.90))] \
+        .apply(lambda x: x[(x['human_vote'] >= x['human_vote'].quantile(0.25)) &
+                           (x['human_vote'] <= x['human_vote'].quantile(0.75))] \
                .drop_duplicates(subset=['response']) \
                .sample(n=10, random_state=56)) \
         .reset_index(drop=True)[['prompt', 'response']]
