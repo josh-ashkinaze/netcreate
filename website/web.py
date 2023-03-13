@@ -9,7 +9,6 @@ Description: This is a Flask web application that runs a web experiment.
 * The experiment has four routes:  the consent form, the start of the experiment, the trials themselves, and the thank you page.
 """
 
-# TODO fix the specific items
 # TODO add GPT prompts
 
 from flask import Flask, render_template, request, redirect, url_for
@@ -24,11 +23,11 @@ import random
 ####################
 CONDITIONS = {
     'hh': {'source': 'human', 'label': 'humans'},
-    'ha': {'source': 'human', 'label': 'artifical intelligence'},
-    'aa': {'source': 'ai', 'label': 'artifical intelligence'},
+    'ha': {'source': 'human', 'label': 'artificial intelligence'},
+    'aa': {'source': 'ai', 'label': 'artificial intelligence'},
     'ah': {'source': 'ai', 'label': 'humans'}
 }
-ITEMS = ['a rope', 'a bat', 'a ball', 'a coffee cup']
+ITEMS = ['a book', 'a bottle', 'a fork', 'a tire']
 
 N_EXAMPLES = 5
 ####################
