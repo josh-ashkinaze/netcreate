@@ -1,0 +1,158 @@
+---
+title: "Find cluster of AUT items"
+author: "Joshua Ashkinaze"
+date: "2023-03-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+```{r, echo=FALSE}
+library(lme4)
+library(tidyverse)
+library(gtools)
+library(readr)
+library(vtable)
+library(stargazer)
+library(ggplot2)
+library(ggthemes)
+```
+
+# Global Variables
+
+```{r}
+set.seed(416)
+CLUSTER_SIZE = 5 # how many items to get
+```
+
+# Read in Data
+
+```{r make_model}
+library(lme4)
+library(tidyverse)
+library(gtools)
+library(readr)
+library(vtable)
+library(ggplot2)
+
+df <- read_csv("../../data/gt_main2.csv")
+df$prompt <- as.factor(df$prompt)
+df$src <- as.factor(df$src)
+df <- df %>%
+  rename(study = src,
+         aut_item = prompt,
+         score = target)
+```
+
+## Basic Metadata Description
+
+```{r prompts, echo=TRUE}
+
+
+aut_freqs <- df %>%
+  group_by(aut_item) %>%
+  summarize(occur = n()) %>%
+  ungroup()
+n <- nrow(df)
+n_ppl <- n_distinct(df$participant)
+n_items <- n_distinct(df$aut_item)
+n_studies <- n_distinct(df$study)
+mean_freq <- round(mean(aut_freqs$occur), 2) 
+sd_freq <- round(sd(aut_freqs$occur), 2) 
+min_freq <- min(aut_freqs$occur) 
+max_freq <- max(aut_freqs$occur) 
+
+result_str <- sprintf("There were %d total responses from %d participants, across %d distinct AUT items and %d distinct studies. Across all studies, scores were normalized from 1-5. The frequency of AUT items (M=%.2f, SD=%.2f) ranged from %d to %d.", n, n_ppl, n_items, n_studies, mean_freq, sd_freq, min_freq, max_freq)
+
+print(result_str)
+
+
+st(df)
+```
+
+# Clusters
+
+```{r, echo=TRUE}
+ggplot(data=df, aes(y=reorder(aut_item, score), x=score)) + 
+  geom_boxplot() +
+  labs(x = "Score", y = "AUT Item") +
+  ggtitle("Distribution of Scores on AUT Items") +
+  theme_few()
+ggsave(file.path("prior_work_aut_dist.png"), dpi = 300, bg = 'transparent')
+```
+
+## Get clusters
+
+```{r, echo=TRUE}
+
+first_quartile <- quantile(aut_freqs$occur, 0.25)
+filtered_df <- df %>%
+  inner_join(aut_freqs, by = "aut_item") %>%
+  filter(occur > first_quartile) %>%
+  select(-occur)
+
+
+
+# Fit nested random fx model
+model <-
+  lmer(score ~ 0 + aut_item + (1 |
+                                 study / participant), data = filtered_df)
+summary(model)
+fixed_effects <- fixef(model)
+
+
+
+find_min_variance_cluster <-
+  function(n, prompt_combinations, fixed_effects) {
+    prompt_combinations <-
+      combinations(length(fixed_effects), n, names(fixed_effects))
+    
+    min_variance <- Inf
+    best_cluster <- NULL
+    
+    for (i in 1:nrow(prompt_combinations)) {
+      cluster <- prompt_combinations[i, ]
+      cluster_means <- fixed_effects[cluster]
+      variance <- var(cluster_means)
+      
+      if (variance < min_variance) {
+        min_variance <- variance
+        best_cluster <- cluster
+      }
+    }
+    
+    return(best_cluster)
+  }
+
+cluster <-
+  find_min_variance_cluster(CLUSTER_SIZE, prompt_combinations, fixed_effects)
+cluster <- sub("aut_item", "", cluster)
+print(cluster)
+
+```
+
+```{r}
+print(stargazer(model, title="Mixed Effects Model of AUT Scores", single.row=TRUE))
+```
+
+## Give info on clusters
+
+```{r}
+
+cluster_df_sum <- df[df$aut_item %in% cluster, ] %>% group_by(by=aut_item) %>% summarise(m = mean(score))
+
+cluster_df <- df %>% filter(aut_item %in% cluster)
+intra_mean <- round(mean(cluster_df_sum$m),2)
+intra_sd <- round(sd(cluster_df_sum$m),2)
+overall_mean <- round(mean(df$score), 2)
+
+result_str <- sprintf("The intra-cluster mean was %0.2f and intra-cluster SD was %0.2f, while the general mean was %0.2f.", intra_mean, intra_sd, overall_mean)
+print(result_str)
+
+```
+
+## 
