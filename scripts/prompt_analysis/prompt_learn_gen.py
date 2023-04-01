@@ -10,6 +10,7 @@ import logging
 import concurrent.futures
 from datetime import datetime
 from tenacity import RetryCallState
+import jsonlines
 
 from tenacity import (
     retry,
@@ -62,7 +63,8 @@ def generate_responses(prompt, temperature, frequency_penalty, presence_penalty)
         presence_penalty=presence_penalty,
         temperature=temperature,
     )
-    message = response["choices"][0]["text"].strip()
+    message = response["choices"][0]["text"]
+    print(message)
     return message
 
 
@@ -84,15 +86,15 @@ def main(N_TRIALS_PER_COMBO=1):
     date_string = now.strftime("%Y-%m-%d-%H-%M-%S")
     log_file = f"{os.path.splitext(os.path.basename(__file__))[0]}_{date_string}.log"
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w', format='%(asctime)s %(message)s')
-    results_file = f"results_{date_string}.csv"
+    results_file = f"results_{date_string}.jsonl"
 
-    results = []
     grid_search = {
         'n_examples': [4],
         'temperature': [0.6, 0.7, 0.8],
         'frequency_penalty': [1, 1.5],
         'presence_penalty': [1, 1.5]
     }
+
 
     logging.info(f"n_trials_combo: {N_TRIALS_PER_COMBO}")
 
@@ -108,9 +110,12 @@ def main(N_TRIALS_PER_COMBO=1):
     total_requests = len(PROMPTS) * len(AUT_ITEMS) * len(all_combinations) * N_TRIALS_PER_COMBO
     logging.info(f"TOTAL REQUESTS: {total_requests}")
 
-    condition_counter = 0 # Keep track ITEM x COMBO x TRIAL
-    total_counter = 0 # Keep track of total number of responses
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    results = []
+    condition_counter = 0
+    total_counter = 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor, jsonlines.open(results_file,
+                                                                                          mode='w') as outfile:
         for aut_item in AUT_ITEMS:
             for combination in all_combinations:
                 for trial in range(N_TRIALS_PER_COMBO):
@@ -142,13 +147,14 @@ def main(N_TRIALS_PER_COMBO=1):
                             'presence_penalty': presence_penalty
                         }
                         results.append(row)
-                        total_counter +=1
+                        total_counter += 1
                         if total_counter % 100 == 0:
                             logging.info(f"{total_counter} of {total_requests}")
                 condition_counter += 1
 
-    df = pd.DataFrame(results)
-    df.to_csv(results_file)
+    with jsonlines.open(results_file, mode='w') as writer:
+        for row in results:
+            writer.write(row)
 main()
 
 
