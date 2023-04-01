@@ -5,14 +5,17 @@ import pandas as pd
 import json
 import itertools
 import os
+import sys
 import logging
 import concurrent.futures
 from datetime import datetime
+from tenacity import RetryCallState
 
 from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
+    before_sleep_log
 )  # for exponential backoff
 
 #####################################
@@ -24,20 +27,19 @@ API_KEY = data['api_key']
 example_df = pd.read_csv("../../data/gt_main2.csv")
 AUT_ITEMS = ["brick"]
 PROMPTS = {
-    "zero_shot": "What are creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. List [N] creative uses for [OBJECT_NAME].",
+    "zero_shot": "What are some creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. List [N] creative uses for [OBJECT_NAME].",
 
-    "implicit": "What are creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Based on the examples, list [N] creative uses for [OBJECT_NAME] that sounds like the examples.",
+    "implicit": "What are some creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Based on the examples, list [N] creative uses for [OBJECT_NAME] that sounds like the examples.",
 
-    "explicit": "What are creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples.",
+    "explicit": "What are some creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples.",
 }
 #####################################
 
-#####################################
+
 def handle_prompt(args):
     prompt_base, object_name, examples, n_examples, temperature, frequency_penalty, presence_penalty = args
     prompt = make_prompt(prompt_base, object_name, examples, n_examples)
     response = generate_responses(prompt, temperature, frequency_penalty, presence_penalty)
-    print(response)
     return response
 
 
@@ -49,7 +51,7 @@ def make_prompt(prompt_base, object_name, examples, n_examples):
     return prompt
 
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+@retry(wait=wait_random_exponential(multiplier=30, min=1, max=60), stop=stop_after_attempt(30),before_sleep=before_sleep_log(logging, logging.INFO))
 def generate_responses(prompt, temperature, frequency_penalty, presence_penalty):
     openai.api_key = API_KEY
     response = openai.Completion.create(
@@ -74,6 +76,9 @@ def split_ideas(x):
     return x
 
 
+def log_before_sleep(retry_state: RetryCallState):
+    logging.info(f"Waiting {retry_state.next_action.sleep} seconds before retrying...")
+
 def main(N_TRIALS_PER_COMBO=1):
     now = datetime.now()
     date_string = now.strftime("%Y-%m-%d-%H-%M-%S")
@@ -84,9 +89,9 @@ def main(N_TRIALS_PER_COMBO=1):
     results = []
     grid_search = {
         'n_examples': [4],
-        'temperature': [0.5, 0.7, 0.9],
-        'frequency_penalty': [0.5, 1, 1.5],
-        'presence_penalty': [0.5, 1, 1.5]
+        'temperature': [0.6, 0.7, 0.8],
+        'frequency_penalty': [1, 1.5],
+        'presence_penalty': [1, 1.5]
     }
 
     logging.info(f"n_trials_combo: {N_TRIALS_PER_COMBO}")
@@ -103,16 +108,16 @@ def main(N_TRIALS_PER_COMBO=1):
     total_requests = len(PROMPTS) * len(AUT_ITEMS) * len(all_combinations) * N_TRIALS_PER_COMBO
     logging.info(f"TOTAL REQUESTS: {total_requests}")
 
-    counter = 0
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=None) as executor:
+    condition_counter = 0 # Keep track ITEM x COMBO x TRIAL
+    total_counter = 0 # Keep track of total number of responses
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         for aut_item in AUT_ITEMS:
-            for prompt_name, prompt_base in PROMPTS.items():
-                for combination in all_combinations:
-                    for trial in range(N_TRIALS_PER_COMBO):
-                        n_examples, temperature, frequency_penalty, presence_penalty = combination
-                        examples = get_examples(example_df, aut_item, n_examples, seed=counter)
+            for combination in all_combinations:
+                for trial in range(N_TRIALS_PER_COMBO):
+                    n_examples, temperature, frequency_penalty, presence_penalty = combination
+                    examples = get_examples(example_df, aut_item, n_examples, seed=condition_counter)
 
+                    for prompt_name, prompt_base in PROMPTS.items():
                         args = (
                             prompt_base,
                             "a " + aut_item,
@@ -128,6 +133,7 @@ def main(N_TRIALS_PER_COMBO=1):
                         row = {
                             'prompt_condition': prompt_name,
                             'trial_no': trial,
+                            'idx': condition_counter,
                             'examples': examples,
                             'output_responses': generated_response,
                             'n_examples': n_examples,
@@ -136,13 +142,18 @@ def main(N_TRIALS_PER_COMBO=1):
                             'presence_penalty': presence_penalty
                         }
                         results.append(row)
-                        if counter % 100 == 0:
-                            logging.info(f"{counter} of {total_requests}")
-                        counter += 1
+                        total_counter +=1
+                        if total_counter % 100 == 0:
+                            logging.info(f"{total_counter} of {total_requests}")
+                condition_counter += 1
 
     df = pd.DataFrame(results)
     df.to_csv(results_file)
-
-
 main()
 
+
+if __name__ == "__main__":
+    if sys.argv[1]:
+        main(sys.argv[1])
+    else:
+        main()
