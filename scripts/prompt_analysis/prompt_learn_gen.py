@@ -2,14 +2,12 @@
 
 import openai
 import pandas as pd
-import numpy as np
 import json
-import time
-import csv
 import itertools
 import os
 import logging
 import concurrent.futures
+from datetime import datetime
 
 from tenacity import (
     retry,
@@ -77,8 +75,11 @@ def split_ideas(x):
 
 
 def main(N_TRIALS_PER_COMBO=1):
-    log_file = os.path.splitext(os.path.basename(__file__))[0] + '.log'
+    now = datetime.now()
+    date_string = now.strftime("%Y-%m-%d-%H-%M-%S")
+    log_file = f"{os.path.splitext(os.path.basename(__file__))[0]}_{date_string}.log"
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w', format='%(asctime)s %(message)s')
+    results_file = f"results_{date_string}.csv"
 
     results = []
     grid_search = {
@@ -140,7 +141,7 @@ def main(N_TRIALS_PER_COMBO=1):
                         counter += 1
 
     df = pd.DataFrame(results)
-    df.to_csv("results.csv")
+    df.to_csv(results_file)
 
 
 main()
