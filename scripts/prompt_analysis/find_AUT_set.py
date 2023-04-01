@@ -24,7 +24,7 @@ def main(N=4):
     # Note: The link to the data was obtained by Joshua Ashkinaze contacting Peter Organisciak
 
     # Check if the data file already exists
-    dest_path = "../data/dumas_et_al.csv"
+    dest_path = "../../data/dumas_et_al.csv"
     if os.path.isfile(dest_path):
         logging.info("Data file already exists. Skipping download step.")
     else:
