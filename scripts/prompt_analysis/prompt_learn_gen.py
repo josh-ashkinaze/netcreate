@@ -9,6 +9,7 @@ import csv
 import itertools
 import os
 import logging
+import concurrent.futures
 
 from tenacity import (
     retry,
@@ -25,29 +26,17 @@ API_KEY = data['api_key']
 example_df = pd.read_csv("../../data/gt_main2.csv")
 AUT_ITEMS = ["brick"]
 PROMPTS = {
-    "zero_shot": "What are creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. List [N] creative uses for [OBJECT_NAME]",
+    "zero_shot": "What are creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. List [N] creative uses for [OBJECT_NAME].",
 
     "implicit": "What are creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Based on the examples, list [N] creative uses for [OBJECT_NAME] that sounds like the examples.",
 
-    "explicit": "What are creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples",
+    "explicit": "What are creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples.",
 }
 #####################################
 
-
-## LOGGER ##
 #####################################
-if '__file__' in globals():
-    log_file = os.path.splitext(os.path.basename(__file__))[0] + '.log'
-else:
-    log_file = 'logfile.log'
-logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w', format='%(asctime)s %(message)s')
-
-
-#####################################
-
-
-#####################################
-def handle_prompt(prompt_base, object_name, examples, n_examples, temperature, frequency_penalty, presence_penalty):
+def handle_prompt(args):
+    prompt_base, object_name, examples, n_examples, temperature, frequency_penalty, presence_penalty = args
     prompt = make_prompt(prompt_base, object_name, examples, n_examples)
     response = generate_responses(prompt, temperature, frequency_penalty, presence_penalty)
     print(response)
@@ -115,34 +104,41 @@ def main(N_TRIALS_PER_COMBO=1):
 
     counter = 0
 
-    for aut_item in AUT_ITEMS:
-        for prompt_name, prompt_base in PROMPTS.items():
-            for combination in all_combinations:
-                for trial in range(N_TRIALS_PER_COMBO):
-                    n_examples, temperature, frequency_penalty, presence_penalty = combination
-                    examples = get_examples(example_df, aut_item, n_examples, seed=counter)
-                    generated_response = handle_prompt(prompt_base,
-                                                       object_name="a " + aut_item,
-                                                       examples=examples,
-                                                       n_examples=n_examples,
-                                                       temperature=temperature,
-                                                       frequency_penalty=frequency_penalty,
-                                                       presence_penalty=presence_penalty)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=None) as executor:
+        for aut_item in AUT_ITEMS:
+            for prompt_name, prompt_base in PROMPTS.items():
+                for combination in all_combinations:
+                    for trial in range(N_TRIALS_PER_COMBO):
+                        n_examples, temperature, frequency_penalty, presence_penalty = combination
+                        examples = get_examples(example_df, aut_item, n_examples, seed=counter)
 
-                    row = {
-                        'prompt_condition': prompt_name,
-                        'trial_no': trial,
-                        'examples': examples,
-                        'output_responses': generated_response,
-                        'n_examples': n_examples,
-                        'temperature': temperature,
-                        'frequency_penalty': frequency_penalty,
-                        'presence_penalty': presence_penalty
-                    }
-                    results.append(row)
-                    if counter % 100 == 0:
-                        logging.info(f"{counter} of {total_requests}")
-                    counter += 1
+                        args = (
+                            prompt_base,
+                            "a " + aut_item,
+                            examples,
+                            n_examples,
+                            temperature,
+                            frequency_penalty,
+                            presence_penalty
+                        )
+                        future = executor.submit(handle_prompt, args)
+                        generated_response = future.result()
+
+                        row = {
+                            'prompt_condition': prompt_name,
+                            'trial_no': trial,
+                            'examples': examples,
+                            'output_responses': generated_response,
+                            'n_examples': n_examples,
+                            'temperature': temperature,
+                            'frequency_penalty': frequency_penalty,
+                            'presence_penalty': presence_penalty
+                        }
+                        results.append(row)
+                        if counter % 100 == 0:
+                            logging.info(f"{counter} of {total_requests}")
+                        counter += 1
+
     df = pd.DataFrame(results)
     df.to_csv("results.csv")
 
