@@ -30,9 +30,9 @@ AUT_ITEMS = ["brick"]
 PROMPTS = {
     "zero_shot": "What are some creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. List [N] creative uses for [OBJECT_NAME].",
 
-    "implicit": "What are some creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Based on the examples, list [N] creative uses for [OBJECT_NAME] that sounds like the examples.",
+    "implicit": "What are some creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. Here are example creative uses: [EXAMPLES] Based on the examples, list [N] creative uses for [OBJECT_NAME] that sounds like the examples.",
 
-    "explicit": "What are some creative uses for [OBJECT_NAME]? Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples.",
+    "explicit": "What are some creative uses for [OBJECT_NAME]? The goal is to come up with a creative idea, which is an idea that strikes people as clever, unusual, interesting, uncommon, humorous, innovative, or different. Here are example creative uses: [EXAMPLES] Carefully study the examples and their style, then list [N] creative uses for [OBJECT_NAME] that resemble the given examples. Match the style, length, and complexity of the creative ideas in the examples.",
 }
 #####################################
 
