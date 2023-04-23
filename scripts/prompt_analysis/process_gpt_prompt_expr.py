@@ -1,16 +1,11 @@
-import jsonlines
 import pandas as pd
-import numpy as np
 import re
 import nltk
-import os
 from nltk.tokenize import word_tokenize
 from collections import Counter
 from scipy.spatial.distance import cosine
 import torch
-from concurrent.futures import ProcessPoolExecutor
 import numpy as np
-import seaborn as sns
 from textstat import flesch_reading_ease
 import jsonlines
 from transformers import DistilBertModel, DistilBertTokenizer
@@ -76,14 +71,6 @@ def bert_embedding(texts, model, tokenizer, batch_size=32):
     except Exception as e:
         print(e)
         return np.NaN
-
-
-# def semantic_embedding(texts, model):
-#     embeddings_list = []
-#     for text in texts:
-#         idea_embeddings = model.encode(text)
-#         embeddings_list.append(idea_embeddings)
-#     return embeddings_list
 
 def pos_distributions(texts):
     try:
@@ -184,10 +171,9 @@ def cosineb_distances(row):
 
 # Function to parallelize
 # Function to parallelize
-def parallel_processing(df):
+def process_data(df):
     df['output'] = df['output_responses'].apply(lambda x: extract_ideas(x))
 
-    # Semantic embeddings
     # Semantic embeddings
     df['output_bert_embeddings'] = df['output'].apply(
         lambda x: bert_embedding(x, distilbert_model, distilbert_tokenizer))
@@ -211,33 +197,14 @@ def parallel_processing(df):
     df['readability_distances'] = df.apply(readability_distances, axis=1)
 
     return df
-
 def main():
-
     # Load data
-    res = load_results("results_2023-04-02-16-38-06.jsonl").sample(10)
+    res = load_results("results_2023-04-02-16-38-06.jsonl").head(300)
 
-    # Split the DataFrame into equal chunks for parallel processing
-    num_chunks = os.cpu_count()
-    data_chunks = np.array_split(res, num_chunks)
+    # Process data
+    res = process_data(res)
 
-    # Run parallel processing
-    with ProcessPoolExecutor(num_chunks) as executor:
-        results = executor.map(parallel_processing, data_chunks)
-
-    # Load data
-    res = load_results("results_2023-04-02-16-38-06.jsonl")
-
-    # Split the DataFrame into equal chunks for parallel processing
-    num_chunks = os.cpu_count()
-    data_chunks = np.array_split(res, num_chunks)
-
-    # Run parallel processing
-    with ProcessPoolExecutor() as executor:
-        results = executor.map(parallel_processing, data_chunks)
-
-    # Concatenate the results back into a single DataFrame
-    res = pd.concat(results)
+    # Save results
     res.to_json("final_pull.json", orient='records')
     res.to_csv("final_pull.csv")
 
